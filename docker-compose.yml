@@ -1,0 +1,62 @@
+# Shared TEI sidecars for pattern MCP servers.
+#
+# This stack owns the single pair of TEI containers (embedder + reranker)
+# that both the architecture-pattern-mcp and agent-pattern-mcp systemd
+# stacks consume via the external network `pattern-tei-shared`.
+#
+# Dev compose files (docker/docker-compose.yml in each repo) keep their
+# OWN TEI sidecars with unique container names — they do NOT use this stack.
+#
+# Usage:
+#   docker compose -f docker-compose.yml up -d
+#   # or via systemd: systemctl start pattern-tei-infra
+#
+# Image overrides (for registry-based deploys):
+#   TEI_IMAGE=olkowa/pattern-tei-embed:0.1.0 TEI_RERANK_IMAGE=olkowa/pattern-tei-rerank:0.1.0 \
+#     docker compose -f docker-compose.yml up -d
+
+name: pattern-tei-infra
+
+services:
+  pattern-tei-embed:
+    image: ${TEI_IMAGE:-pattern-tei-embed:latest}
+    container_name: pattern-tei-embed
+    restart: unless-stopped
+    networks: [pattern-tei-shared]
+    volumes:
+      - tei-embed-data:/data
+    environment:
+      - HF_HUB_OFFLINE=1
+      - HUGGINGFACE_HUB_CACHE=/data
+      - MAX_CLIENT_BATCH_SIZE=32
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+  pattern-tei-rerank:
+    image: ${TEI_RERANK_IMAGE:-pattern-tei-rerank:latest}
+    container_name: pattern-tei-rerank
+    restart: unless-stopped
+    networks: [pattern-tei-shared]
+    volumes:
+      - tei-rerank-data:/data
+    environment:
+      - HF_HUB_OFFLINE=1
+      - HUGGINGFACE_HUB_CACHE=/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+networks:
+  pattern-tei-shared:
+    name: pattern-tei-shared
+
+volumes:
+  tei-embed-data:
+  tei-rerank-data:
