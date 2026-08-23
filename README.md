@@ -30,6 +30,45 @@ stack.
     docker compose -f docker-compose.yml up -d
   ```
 
+## Configuration
+
+All TEI parameters are tunable via environment variables. Defaults are set in the
+`docker-compose.yml`; the `${VAR:-default}` syntax allows override without editing
+the compose file.
+
+**Embedder tunables** (`pattern-tei-embed`):
+
+| Variable | Default | Description |
+|---|---|---|
+| `TEI_IMAGE` | `pattern-tei-embed:latest` | Embedder image |
+| `TEI_MAX_CONCURRENT_REQUESTS` | `32` | Max parallel inference requests |
+| `TEI_MAX_BATCH_TOKENS` | `8192` | Max tokens per batch |
+| `TEI_MAX_CLIENT_BATCH_SIZE` | `32` | Max batch size from clients |
+| `TEI_AUTO_TRUNCATE` | `true` | Truncate inputs exceeding model max |
+| `TEI_PROMETHEUS_PORT` | `0` | Prometheus metrics port (0 = disabled) |
+| `TEI_HOSTNAME` | `0.0.0.0` | Bind address |
+| `TEI_PORT` | `8080` | Service port |
+
+**Reranker tunables** (`pattern-tei-rerank`):
+
+| Variable | Default | Description |
+|---|---|---|
+| `TEI_RERANK_IMAGE` | `pattern-tei-rerank:latest` | Reranker image |
+| `TEI_RERANK_MAX_CONCURRENT_REQUESTS` | `32` | Max parallel inference requests |
+| `TEI_RERANK_MAX_BATCH_TOKENS` | `16384` | Max tokens per batch |
+| `TEI_RERANK_MAX_CLIENT_BATCH_SIZE` | `48` | Max batch size from clients |
+| `TEI_RERANK_AUTO_TRUNCATE` | `true` | Truncate inputs exceeding model max |
+| `TEI_RERANK_PROMETHEUS_PORT` | `0` | Prometheus metrics port (0 = disabled) |
+| `TEI_RERANK_HOSTNAME` | `0.0.0.0` | Bind address |
+| `TEI_RERANK_PORT` | `8080` | Service port |
+
+**Invariants**:
+- Embedder: `EMBEDDER_BATCH_SIZE` (client) ≤ `MAX_CLIENT_BATCH_SIZE` ≤ `MAX_CONCURRENT_REQUESTS`
+- Reranker: `MAX_CLIENT_BATCH_SIZE` ≥ `bm25_top_k` + `dense_top_k` (up to 40 with both set to 20)
+
+**PORT alignment**: If you change `TEI_RERANK_PORT`, update `RERANKER_BASE_URL` in your
+MCP server's compose env or `config.json` to match (default: `http://pattern-tei-rerank:8080`).
+
 ## Start / stop
 
 ```bash
